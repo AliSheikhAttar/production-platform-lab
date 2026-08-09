@@ -1,236 +1,302 @@
 # Production Platform Lab
 
-A project-based **DevOps, Platform Engineering, Site Reliability Engineering, and Distributed Systems laboratory** that builds a production-style microservice platform from the ground up.
+A project-based **DevOps, Platform Engineering, Site Reliability Engineering, and Distributed Systems laboratory** that builds a production-style polyglot microservice platform from the ground up.
 
-The project begins with a small application running as native Linux services and gradually evolves into an automated, containerized, observable, highly available Kubernetes platform.
+The project begins with small application services running directly on Linux and gradually evolves into an automated, containerized, observable, highly available Kubernetes platform.
 
-The objective is **not simply to install DevOps tools**.
+The objective is **not simply to install DevOps technologies**.
 
 The objective is to understand how production systems are:
 
 * designed
 * implemented
 * deployed
-* automated
 * networked
+* automated
 * secured
 * monitored
 * scaled
-* troubleshot
+* debugged
+* optimized
 * recovered from failure
 
-The project intentionally introduces complexity gradually so that every major infrastructure component exists to solve a problem encountered in an earlier stage.
+Complexity is introduced gradually so that each technology solves or demonstrates a concrete production problem.
 
 ---
 
 # Project Goals
 
-This laboratory is designed to develop practical experience in:
+This laboratory develops hands-on experience with:
 
-* Linux systems engineering
-* TCP/IP networking
-* DNS
-* HTTP and HTTPS
-* TLS
+## Software Engineering
+
 * Go
 * Python
 * Bash
+* SQL
 * Git
-* systemd
-* Nginx / HAProxy
-* PostgreSQL
-* Infrastructure as Code
-* Ansible
-* containers and OCI
-* Docker / containerd
-* GitLab CI/CD
-* Kubernetes
-* Helm
+* REST APIs
 * gRPC
 * Protocol Buffers
+* concurrency
+* testing
+* service contracts
+
+## Linux & Systems
+
+* Linux administration
+* processes
+* signals
+* systemd
+* journald
+* users and permissions
+* filesystems
+* resource management
+* cgroups
+* namespaces
+
+## Networking
+
+* TCP/IP
+* UDP
+* DNS
+* HTTP
+* HTTP/2
+* HTTPS
+* TLS
+* reverse proxies
+* load balancing
+* service discovery
+* network troubleshooting
+
+## Infrastructure & DevOps
+
+* KVM/QEMU
+* Libvirt
+* Ansible
+* Docker
+* OCI containers
+* containerd
+* GitLab CI/CD
+* container registries
+* Kubernetes
+* Helm
+* Infrastructure as Code concepts
+
+## Data & Distributed Systems
+
+* PostgreSQL
+* Redis
 * RabbitMQ
 * Kafka
+* Ceph
+* replication
+* caching
+* sharding
+* consistency
+* messaging
+* event streaming
+* distributed storage
+
+## Observability & Reliability
+
 * Prometheus
 * Grafana
-* centralized logging
+* Alertmanager
 * OpenTelemetry
-* PostgreSQL high availability
-* distributed storage with Ceph
-* SLI / SLO engineering
+* centralized logging
+* distributed tracing
+* SLI
+* SLO
+* SLA
+* error budgets
 * incident response
 * disaster recovery
 * failure engineering
-* distributed-system design
 
 ---
 
 # Application
 
-The infrastructure hosts a distributed task-processing system called **TaskFlow**.
+The infrastructure hosts a distributed task-processing application called **TaskFlow**.
 
-TaskFlow is intentionally small from a product perspective because the main focus of the project is infrastructure and distributed-system behavior.
+TaskFlow is intentionally simple from a product perspective because the primary purpose of the project is infrastructure and distributed-system engineering.
 
 Users can:
 
 * create tasks
 * assign tasks
 * update task status
-* process tasks asynchronously
-* view task-processing results
+* submit tasks for asynchronous processing
+* inspect processing results
 * query task history
-* receive task notifications
+* receive notifications
 * view basic analytics
 
-The application evolves from a single service into a polyglot microservice architecture.
+The application begins as a simple service and gradually evolves into a polyglot microservice system.
 
 ---
 
-# Application Architecture
-
-The final application consists of several independently deployable services.
+# Final Application Architecture
 
 ```text
-                              Clients
-                                 │
-                              HTTPS/REST
-                                 │
-                                 ▼
-                        ┌─────────────────┐
-                        │   API Gateway   │
-                        │       Go        │
-                        └────────┬────────┘
-                                 │
-                        Internal gRPC
-                   ┌─────────────┴─────────────┐
-                   │                           │
-                   ▼                           ▼
-          ┌─────────────────┐         ┌─────────────────┐
-          │  Task Service   │         │  User Service   │
-          │       Go        │         │       Go        │
-          └────────┬────────┘         └────────┬────────┘
-                   │                           │
-                   ▼                           ▼
-                Task DB                     User DB
-                   │
-                   │ command
-                   ▼
-              ┌──────────┐
-              │ RabbitMQ │
-              └────┬─────┘
-                   │
-                   ▼
-         ┌─────────────────────┐
-         │ Processing Service  │
-         │       Python        │
-         └─────────┬───────────┘
-                   │
-                   │ domain events
-                   ▼
-              ┌──────────┐
-              │  Kafka   │
-              └────┬─────┘
-                   │
-       ┌───────────┼──────────────┐
-       │           │              │
-       ▼           ▼              ▼
-┌────────────┐ ┌───────────┐ ┌──────────────┐
-│ Analytics  │ │   Audit   │ │ Notification │
-│   Python   │ │    Go     │ │ Go / Python  │
-└────────────┘ └───────────┘ └──────────────┘
+                                   Clients
+                                      │
+                               HTTPS / REST
+                                      │
+                                      ▼
+                           ┌────────────────────┐
+                           │    API Gateway     │
+                           │        Go          │
+                           └─────────┬──────────┘
+                                     │
+                        ┌────────────┼────────────┐
+                        │            │            │
+                        │ gRPC       │ Redis      │ gRPC
+                        ▼            ▼            ▼
+                ┌──────────────┐ ┌─────────┐ ┌──────────────┐
+                │ Task Service │ │  Redis  │ │ User Service │
+                │      Go      │ │ Cluster │ │      Go      │
+                └──────┬───────┘ └─────────┘ └──────┬───────┘
+                       │                              │
+                       ▼                              ▼
+                   task_db                         user_db
+                       │
+                       │ ProcessTask command
+                       ▼
+                 ┌────────────┐
+                 │  RabbitMQ  │
+                 └─────┬──────┘
+                       │
+             ┌─────────┴──────────┐
+             ▼                    ▼
+     ┌───────────────┐    ┌───────────────┐
+     │ Python Worker │    │ Python Worker │
+     │       #1      │    │       #N      │
+     └───────┬───────┘    └───────┬───────┘
+             │                    │
+             └──────────┬─────────┘
+                        │
+                        │ domain events
+                        ▼
+                  ┌───────────┐
+                  │   Kafka   │
+                  └─────┬─────┘
+                        │
+             ┌──────────┼────────────┐
+             │          │            │
+             ▼          ▼            ▼
+       ┌───────────┐ ┌────────┐ ┌──────────────┐
+       │ Analytics │ │ Audit  │ │ Notification │
+       │  Python   │ │   Go   │ │  Go/Python   │
+       └───────────┘ └────────┘ └──────────────┘
 ```
 
 ---
 
-# Services
+# Service Responsibilities
 
 ## API Gateway — Go
 
-The public entry point into TaskFlow.
+The public entry point to TaskFlow.
 
 Responsibilities:
 
 * expose REST/HTTPS APIs
-* route requests to internal services
-* authentication and authorization enforcement
-* request validation
+* route requests
+* validate authentication
+* enforce authorization
 * rate limiting
+* request validation
 * correlation IDs
 * trace propagation
-* external API versioning
+* API versioning
+* request timeouts
 
-The gateway communicates with internal services primarily using **gRPC**.
+Internal communication primarily uses **gRPC**.
+
+Redis is used for shared rate-limit state and selected short-lived data.
 
 ---
 
 ## Task Service — Go
 
-Owns the core task domain.
+Owns the task domain.
 
 Responsibilities:
 
 * create tasks
+* retrieve tasks
 * update tasks
-* retrieve task state
 * manage task lifecycle
 * persist task metadata
-* publish task-processing commands
-* publish task domain events
+* submit processing commands
+* publish domain events
+* cache selected read-heavy data
 
-The Task Service owns its own PostgreSQL data.
+The Task Service owns `task_db`.
+
+Redis is used through a **cache-aside strategy** for selected hot reads.
+
+PostgreSQL remains the source of truth.
 
 ---
 
 ## User Service — Go
 
-Owns user and identity information.
+Owns users and identity-related information.
 
 Responsibilities:
 
 * user accounts
 * user metadata
 * identity information
+* task ownership relationships
 * authorization-related data
-* ownership relationships
 
-Other services access user information through **gRPC**, rather than reading the User Service database directly.
+The User Service owns `user_db`.
+
+Other services access user information through APIs rather than directly accessing its database.
 
 ---
 
 ## Processing Service — Python
 
-Consumes asynchronous work from RabbitMQ.
+Consumes asynchronous tasks from RabbitMQ.
 
 Responsibilities:
 
-* execute background tasks
-* process long-running operations
-* retry failed operations
-* handle transient failures
-* emit processing results
+* execute background jobs
+* perform long-running processing
+* acknowledge successfully completed work
+* retry transient failures
+* reject unrecoverable work
+* produce processing results
 * publish completion/failure events
 
-Running this service in Python also allows the laboratory to compare operational characteristics of Go and Python workloads.
+Multiple workers can process jobs concurrently.
 
 ---
 
 ## Analytics Service — Python
 
-Consumes events from Kafka and produces derived information.
+Consumes events from Kafka.
 
 Responsibilities:
 
-* task-processing statistics
-* aggregates
-* historical analysis
-* processing latency reports
-* failure-rate analysis
+* processing statistics
+* historical analytics
+* latency calculations
+* failure-rate calculations
+* aggregations
+* reporting
 * derived read models
 
 ---
 
 ## Audit Service — Go
 
-Consumes Kafka events and maintains an immutable operational history.
+Consumes domain events and builds an immutable audit history.
 
 Example events:
 
@@ -243,29 +309,144 @@ TaskFailed
 UserCreated
 ```
 
-The Audit Service provides a permanent history of important application events.
-
 ---
 
 ## Notification Service — Go or Python
 
 Consumes relevant Kafka events.
 
-Example responsibilities:
+Responsibilities may include:
 
-* notify when a task completes
-* notify when processing fails
-* notify when retry limits are exceeded
+* task-completed notification
+* task-failed notification
+* retry exhaustion alerts
+* user-facing event notifications
+
+---
+
+# Redis
+
+Redis is a **first-class technology in this laboratory**.
+
+It is not used as the primary source of truth.
+
+PostgreSQL remains authoritative for durable relational application state.
+
+Redis is introduced to study high-performance distributed in-memory systems.
+
+## Application Uses
+
+### Caching
+
+```text
+Client
+   │
+   ▼
+Task Service
+   │
+   ├──── cache lookup ───► Redis
+   │                         │
+   │                     cache hit
+   │                         │
+   │◄────────────────────────┘
+   │
+   │ cache miss
+   ▼
+PostgreSQL
+   │
+   ▼
+populate Redis
+```
+
+This demonstrates the **cache-aside pattern**.
+
+---
+
+### Distributed Rate Limiting
+
+```text
+Clients
+   │
+   ▼
+API Gateway
+   │
+   ▼
+Redis
+   │
+   ├── request counters
+   ├── TTL windows
+   └── shared rate-limit state
+```
+
+Multiple gateway replicas share the same rate-limiting state.
+
+---
+
+### Temporary Data
+
+Redis can also hold:
+
+* short-lived tokens
+* transient metadata
+* idempotency keys
+* temporary request state
+
+---
+
+# Redis Topics
+
+The Redis stage investigates:
+
+* strings
+* hashes
+* lists
+* sets
+* sorted sets
+* key expiration
+* TTL
+* memory management
+* eviction policies
+* cache-aside
+* cache invalidation
+* cache stampede
+* cache penetration
+* hot keys
+* pipelining
+* transactions
+* Lua scripting
+* optimistic locking
+* persistence
+* RDB snapshots
+* AOF
+* replication
+* Sentinel
+* Redis Cluster
+* hash slots
+* sharding
+* failover
+* split-brain considerations
+* distributed locks
+* Redlock discussion and limitations
+* Pub/Sub
+* Redis Streams
+* monitoring
+* latency analysis
+
+Redis Pub/Sub and Streams are studied partly to compare them with RabbitMQ and Kafka.
 
 ---
 
 # Communication Models
 
-The project intentionally uses multiple communication mechanisms because each solves a different distributed-system problem.
+The project deliberately uses several communication mechanisms.
+
+Each demonstrates a different distributed-system model.
+
+---
 
 ## REST / HTTPS
 
-Used for communication between external clients and the API Gateway.
+Used between external clients and the API Gateway.
 
 ```text
 Client
@@ -275,21 +456,22 @@ Client
 API Gateway
 ```
 
-Topics explored:
+Topics:
 
 * HTTP
-* HTTPS
+* REST
 * TLS
+* API design
 * reverse proxies
-* request routing
 * rate limiting
-* API versioning
+* authentication
+* versioning
 
 ---
 
 ## gRPC
 
-Used for synchronous internal service-to-service communication.
+Used for synchronous internal communication.
 
 ```text
 API Gateway
@@ -299,17 +481,21 @@ API Gateway
      └──── gRPC ───► User Service
 ```
 
-Topics explored:
+Topics:
 
 * Protocol Buffers
-* `.proto` contracts
+* `.proto` files
 * code generation
-* unary RPCs
-* streaming RPCs
+* unary RPC
+* server streaming
+* client streaming
+* bidirectional streaming
+* HTTP/2
 * deadlines
-* cancellation propagation
+* cancellation
 * metadata
 * status codes
+* interceptors
 * schema evolution
 * service discovery
 * load balancing
@@ -318,7 +504,7 @@ Topics explored:
 
 ## RabbitMQ
 
-Used for **commands and work distribution**.
+Used for **commands and task distribution**.
 
 ```text
 Task Service
@@ -328,24 +514,30 @@ Task Service
   RabbitMQ
      │
      ▼
-Processing Service
+Python Workers
 ```
 
-Topics explored:
+RabbitMQ represents:
+
+> work that should be performed
+
+Topics:
 
 * exchanges
 * queues
 * bindings
+* routing keys
 * acknowledgements
-* retries
+* negative acknowledgements
+* publisher confirms
+* retry strategies
 * dead-letter queues
 * quorum queues
 * prefetch
-* consumer crashes
+* backpressure
 * poison messages
 * duplicate delivery
 * idempotent consumers
-* backpressure
 
 ---
 
@@ -360,30 +552,39 @@ Task Service / Worker
         ▼
        Kafka
         │
-   ┌────┼─────────────┐
-   │    │             │
-   ▼    ▼             ▼
+   ┌────┼───────────┐
+   ▼    ▼           ▼
 Audit Analytics Notification
 ```
 
-Topics explored:
+Kafka represents:
+
+> facts that have already happened
+
+Topics:
 
 * topics
 * partitions
-* offsets
+* brokers
+* producers
+* consumers
 * consumer groups
+* offsets
 * replication
+* ISR
 * retention
-* event replay
+* compaction
 * ordering
+* event replay
 * consumer lag
 * rebalancing
+* delivery semantics
 
 ---
 
 # Service Data Ownership
 
-Each service owns its own data.
+Each service owns its data.
 
 ```text
 Task Service
@@ -404,16 +605,16 @@ Analytics Service
  analytics_db
 ```
 
-Services must not directly modify another service's tables.
+Services must not directly manipulate another service's private tables.
 
-Communication occurs through:
+Communication happens through:
 
 * gRPC
-* REST where appropriate
-* RabbitMQ commands
-* Kafka events
+* REST
+* RabbitMQ
+* Kafka
 
-Initially, multiple logical databases may run inside the same PostgreSQL cluster.
+Initially, logical databases may share one PostgreSQL cluster:
 
 ```text
 PostgreSQL Cluster
@@ -423,7 +624,7 @@ PostgreSQL Cluster
 └── analytics_db
 ```
 
-Logical service ownership is kept separate even when physical infrastructure is shared.
+Logical ownership remains separate even when physical infrastructure is shared.
 
 ---
 
@@ -434,16 +635,16 @@ Logical service ownership is kept separate even when physical infrastructure is 
 ```text
 Go
 Python
-Protocol Buffers
-gRPC
 REST
+gRPC
+Protocol Buffers
 ```
 
 ## Data
 
 ```text
 PostgreSQL
-Redis (optional later-stage cache)
+Redis
 ```
 
 ## Messaging
@@ -461,6 +662,7 @@ KVM / QEMU
 Libvirt
 Ansible
 Docker
+OCI
 containerd
 Kubernetes
 Helm
@@ -470,8 +672,10 @@ Helm
 
 ```text
 TCP/IP
+UDP
 DNS
 HTTP
+HTTP/2
 HTTPS
 TLS
 Nginx
@@ -489,7 +693,8 @@ Alertmanager
 Grafana
 OpenTelemetry
 Structured Logging
-Centralized Log Storage
+Centralized Logging
+Distributed Tracing
 ```
 
 ## Storage
@@ -516,79 +721,74 @@ Container Registry
 # Final Platform Architecture
 
 ```text
-                               Developers
-                                   │
-                                   ▼
-                            Git Repository
-                                   │
-                                   ▼
-                              CI/CD Pipeline
-                       ┌───────────┼───────────┐
-                       │           │           │
-                     Tests       Build       Scan
-                                   │
-                                   ▼
-                           Container Registry
-                                   │
-                                   ▼
-                         Kubernetes Cluster
-                                   │
-          ┌────────────────────────┼────────────────────────┐
-          │                        │                        │
-          ▼                        ▼                        ▼
-    API Gateway              Task/User Services       Python Workers
-    Go replicas                Go replicas              autoscaled
-          │                        │                        │
-          └─────────────┬──────────┴───────────┬────────────┘
-                        │                      │
-                        ▼                      ▼
-                PostgreSQL HA             RabbitMQ
-                        │                      │
-                        │                      ▼
-                        │                 Worker Jobs
-                        │
-                        ▼
-                       Kafka
-                        │
-             ┌──────────┼───────────┐
-             │          │           │
-             ▼          ▼           ▼
-         Analytics    Audit    Notifications
-             │
-             ▼
-      Persistent Storage
-             │
-             ▼
-            Ceph
+                              Developers
+                                  │
+                                  ▼
+                           Git Repository
+                                  │
+                                  ▼
+                             CI/CD Pipeline
+                      ┌───────────┼───────────┐
+                      │           │           │
+                    Tests       Build       Scan
+                                  │
+                                  ▼
+                          Container Registry
+                                  │
+                                  ▼
+                        Kubernetes Cluster
+                                  │
+ ┌────────────────────────────────┼────────────────────────────────┐
+ │                                │                                │
+ ▼                                ▼                                ▼
+Gateway                       Go Services                    Python Workers
+replicas                       replicas                       autoscaled
+ │                                │                                │
+ └───────────────┬────────────────┼────────────────┬───────────────┘
+                 │                │                │
+                 ▼                ▼                ▼
+              Redis          PostgreSQL HA     RabbitMQ
+                                │
+                                ▼
+                              Kafka
+                                │
+                    ┌───────────┼───────────┐
+                    ▼           ▼           ▼
+                Analytics     Audit    Notifications
+                                │
+                                ▼
+                              Ceph
 ```
 
 ---
 
 # Observability Architecture
 
-Every application service emits:
-
-* metrics
-* structured logs
-* distributed traces
+Every production service emits:
 
 ```text
-             Go / Python Services
-                     │
-          ┌──────────┼───────────┐
-          │          │           │
-          ▼          ▼           ▼
-       Metrics      Logs       Traces
-          │          │           │
-          ▼          ▼           ▼
-     Prometheus   Log Store   OpenTelemetry
-          │          │           │
-          └──────────┼───────────┘
-                     ▼
-                   Grafana
+metrics
+logs
+traces
 ```
 
-Important identifiers propagate across service boundaries:
+```text
+                Go / Python Services
+                        │
+             ┌──────────┼──────────┐
+             │          │          │
+             ▼          ▼          ▼
+          Metrics      Logs      Traces
+             │          │          │
+             ▼          ▼          ▼
+        Prometheus   Log Store  OpenTelemetry
+             │          │          │
+             └──────────┼──────────┘
+                        ▼
+                      Grafana
+```
+
+Important identifiers propagate through service boundaries:
 
 ```text
 request_id
@@ -597,7 +797,7 @@ task_id
 user_id
 ```
 
-This allows a single operation to be traced across:
+A request can therefore be traced across:
 
 ```text
 Client
@@ -605,6 +805,8 @@ Client
 Gateway
   ↓
 Task Service
+  ↓
+Redis / PostgreSQL
   ↓
 RabbitMQ
   ↓
@@ -645,59 +847,120 @@ Topics:
 
 * WAL
 * LSN
+* MVCC
 * streaming replication
-* primary/standby architecture
 * synchronous replication
 * asynchronous replication
-* replication lag
-* failover
+* replica lag
 * connection pooling
+* backups
 * PITR
+* promotion
+* failover
 * RPO
 * RTO
 * split-brain risks
 
 ---
 
-# Project Stages
+# Redis High Availability
 
-Each stage solves problems exposed by the previous stage.
+Redis evolves from a single node into fault-tolerant configurations.
+
+## Replication
+
+```text
+                   Primary
+                     │
+              ┌──────┴──────┐
+              ▼             ▼
+           Replica 1     Replica 2
+```
 
 ---
 
-## Stage 0 — Application Foundation
+## Sentinel
 
-Build the workload that the rest of the infrastructure will operate.
+```text
+               Sentinel Nodes
+              /       |       \
+             /        |        \
+        Primary ─── Replica ─── Replica
+```
 
-### Goals
+Topics:
 
-* establish the Go and Python application structure
-* build the initial Task Service
-* implement health endpoints
-* implement structured logging
-* implement graceful shutdown
-* introduce PostgreSQL persistence
-* introduce gRPC
-* introduce the first Python worker
-* establish service boundaries
-* establish testing
+* health monitoring
+* leader election
+* automatic failover
+* client discovery
 
-### Concepts
+---
 
-* Go networking
-* `net/http`
-* Go concurrency
-* context propagation
-* graceful shutdown
-* process signals
-* Python workers
-* service contracts
-* Protocol Buffers
+## Redis Cluster
+
+```text
+          Redis Cluster
+
+       Node A        Node B
+      Slots 0-X     Slots X-Y
+         │             │
+      Replica A      Replica B
+
+              Node C
+             Slots Y-Z
+                │
+             Replica C
+```
+
+Topics:
+
+* horizontal partitioning
+* hash slots
+* resharding
+* replica promotion
+* node failure
+* cluster topology
+
+---
+
+# Project Stages
+
+Each stage builds on the problems and knowledge developed in earlier stages.
+
+---
+
+# Stage 0 — Application Foundation
+
+## Goal
+
+Build the workload that the infrastructure will later operate.
+
+## Contribution to the Project
+
+This stage establishes the services, communication contracts, process behavior, and application-level failure modes that later infrastructure stages must deploy, automate, observe, and recover.
+
+## Topics
+
+* Go service architecture
+* Python service architecture
+* REST
 * gRPC
-* persistence
-* stateless services
+* Protocol Buffers
+* Go `net/http`
+* Go concurrency
+* `context.Context`
+* graceful shutdown
+* Linux signals
+* configuration
+* structured logging
+* PostgreSQL persistence
+* basic Redis integration
+* RabbitMQ integration
 * service ownership
-* synchronous vs asynchronous communication
+* health endpoints
+* unit tests
+* integration tests
 
 Tag:
 
@@ -707,29 +970,33 @@ v0-application-foundation
 
 ---
 
-## Stage 1 — Native Linux Services
+# Stage 1 — Native Linux Services
 
-Deploy the application directly onto Linux virtual machines.
+## Goal
 
-### Goals
+Operate the application directly on Linux without containers.
 
-Understand how applications run without containers or orchestration.
+## Contribution
 
-### Topics
+Establish the operational baseline that later stages automate and abstract.
 
-* Linux users and groups
-* permissions
-* process lifecycle
+## Topics
+
+* users
+* groups
+* file permissions
+* processes
 * signals
 * systemd
-* service units
+* systemd dependencies
 * journald
-* Nginx
-* PostgreSQL
-* SSH
-* firewall configuration
 * environment files
-* privilege separation
+* service accounts
+* SSH
+* PostgreSQL
+* Redis
+* Nginx
+* firewall configuration
 * backup scripts
 * restore procedures
 
@@ -741,36 +1008,40 @@ v1-linux-service
 
 ---
 
-## Stage 2 — Networking and TLS
+# Stage 2 — Networking and TLS
 
-Separate services across multiple virtual machines.
+## Goal
 
-### Goals
+Move services across multiple machines and introduce real network boundaries.
 
-Introduce real network boundaries and partial failures.
+## Contribution
 
-### Topics
+Transforms local function/process communication into distributed communication subject to network failures.
+
+## Topics
 
 * IP addressing
 * subnetting
-* routing
 * ARP
+* routing
 * TCP
 * UDP
 * DNS
 * HTTP
+* HTTP/2
 * HTTPS
 * TLS
-* certificate management
+* certificates
+* gRPC networking
 * reverse proxies
 * load balancing
-* gRPC over HTTP/2
-* firewall rules
-* network troubleshooting
-* tcpdump
-* ss
-* dig
-* traceroute
+* firewalls
+* network debugging
+* `ss`
+* `ip`
+* `dig`
+* `tcpdump`
+* `traceroute`
 
 Tag:
 
@@ -780,11 +1051,17 @@ v2-networking-tls
 
 ---
 
-## Stage 3 — Ansible Automation
+# Stage 3 — Ansible Automation
 
-Automate the manually built Linux environment.
+## Goal
 
-### Topics
+Convert manually configured infrastructure into reproducible automation.
+
+## Contribution
+
+Eliminates configuration drift and makes environments reproducible.
+
+## Topics
 
 * inventories
 * playbooks
@@ -795,7 +1072,7 @@ Automate the manually built Linux environment.
 * Ansible Vault
 * idempotence
 * configuration drift
-* service deployment
+* automated deployment
 * secret management
 
 Tag:
@@ -806,28 +1083,33 @@ v3-ansible
 
 ---
 
-## Stage 4 — Containerization
+# Stage 4 — Containerization
 
-Package all application services as OCI containers.
+## Goal
 
-### Topics
+Package services and dependencies as OCI containers.
 
+## Contribution
+
+Creates portable application artifacts suitable for CI/CD and Kubernetes.
+
+## Topics
+
+* OCI
 * Dockerfiles
+* image layers
 * multi-stage builds
 * Go static binaries
 * Python runtime images
-* OCI images
-* layers
-* container networking
 * namespaces
 * cgroups
+* container networking
 * persistent volumes
-* health checks
-* non-root containers
+* non-root users
 * resource limits
+* health checks
 * Docker Compose
-* image security
-* image-size comparison
+* container security
 
 Tag:
 
@@ -837,9 +1119,13 @@ v4-containers
 
 ---
 
-## Stage 5 — CI/CD
+# Stage 5 — CI/CD
 
-Build an automated software delivery pipeline.
+## Goal
+
+Automate build, validation, packaging, and deployment.
+
+## Pipeline
 
 ```text
 Lint
@@ -850,34 +1136,34 @@ Integration Tests
   ↓
 gRPC Contract Tests
   ↓
-Build Container Images
+Build Images
   ↓
 Security Scan
   ↓
 Push Images
   ↓
-Deploy to Staging
+Deploy Staging
   ↓
 Smoke Tests
   ↓
-Manual Approval
+Approval
   ↓
-Deploy to Production
+Production
 ```
 
-### Topics
+## Topics
 
 * GitLab Runner
 * pipeline jobs
 * artifacts
 * caching
-* container registry
+* registries
 * protected variables
-* semantic versioning
+* versioning
+* image scanning
+* software supply chain
 * deployment strategies
 * rollback
-* image scanning
-* supply-chain security
 
 Tag:
 
@@ -887,13 +1173,20 @@ v5-cicd
 
 ---
 
-## Stage 6 — Kubernetes
+# Stage 6 — Kubernetes
 
-Move the platform onto a multi-node Kubernetes cluster.
+## Goal
 
-### Topics
+Move the platform onto a multi-node orchestrated environment.
+
+## Contribution
+
+Introduces reconciliation, declarative infrastructure, scheduling, service discovery, self-healing, and horizontal scaling.
+
+## Topics
 
 * Pods
+* ReplicaSets
 * Deployments
 * StatefulSets
 * Services
@@ -901,22 +1194,22 @@ Move the platform onto a multi-node Kubernetes cluster.
 * ConfigMaps
 * Secrets
 * PersistentVolumes
-* resource requests
-* resource limits
-* liveness probes
-* readiness probes
-* startup probes
-* Horizontal Pod Autoscaler
+* StorageClasses
+* requests
+* limits
+* probes
+* HPA
 * RBAC
 * ServiceAccounts
 * NetworkPolicy
+* rolling deployments
 * Pod disruption
-* rolling updates
+* Kubernetes DNS
+* gRPC service discovery
 * Helm
+* etcd
 * cluster upgrades
 * etcd backups
-* Kubernetes service discovery
-* gRPC load balancing
 
 Tag:
 
@@ -926,21 +1219,23 @@ v6-kubernetes
 
 ---
 
-## Stage 7 — Observability
+# Stage 7 — Observability
 
-Build metrics, logs, traces, dashboards, and alerts.
+## Goal
 
-### Topics
+Make the distributed platform measurable and debuggable.
+
+## Topics
 
 * Prometheus
 * PromQL
 * Grafana
 * Alertmanager
 * Node Exporter
-* application metrics
 * Go metrics
 * Python metrics
 * PostgreSQL metrics
+* Redis metrics
 * RabbitMQ metrics
 * Kafka metrics
 * Kubernetes metrics
@@ -960,22 +1255,24 @@ v7-observability
 
 ---
 
-## Stage 8 — SRE Practices
+# Stage 8 — SRE Practices
 
-Define and operate explicit reliability objectives.
+## Goal
 
-### Topics
+Turn monitoring into measurable reliability engineering.
 
-* SLI
-* SLO
-* SLA
+## Topics
+
+* SLIs
+* SLOs
+* SLAs
 * error budgets
 * burn-rate alerts
 * incident severity
 * on-call procedures
 * runbooks
 * postmortems
-* toil reduction
+* toil
 * capacity planning
 
 Example SLO:
@@ -993,85 +1290,196 @@ v8-sre
 
 ---
 
-## Stage 9 — PostgreSQL High Availability
+# Stage 9 — PostgreSQL High Availability
 
-Build and test a highly available relational database environment.
+## Goal
 
-### Topics
+Understand durable state, replication, database failure, and recovery.
+
+## Topics
 
 * WAL
+* LSN
+* MVCC
 * streaming replication
-* primary and standby servers
+* primary/standby
 * synchronous replication
 * asynchronous replication
-* connection pooling
-* automated backups
+* PgBouncer
+* backup automation
 * PITR
-* failover
 * replica promotion
+* failover
 * replication lag
 * RPO
 * RTO
-* failure detection
 
 Tag:
 
 ```text
-v9-database-ha
+v9-postgresql-ha
 ```
 
 ---
 
-## Stage 10 — Distributed Messaging
+# Stage 10 — Redis & Distributed Caching
 
-Deepen the RabbitMQ and Kafka architecture.
+## Goal
 
-### RabbitMQ
+Understand distributed caching, in-memory data systems, replication, sharding, and cache failure modes.
+
+## Contribution
+
+Adds a low-latency distributed state layer and exposes caching-specific consistency and availability problems.
+
+## Topics
+
+### Data Structures
+
+* strings
+* hashes
+* lists
+* sets
+* sorted sets
+* streams
+
+### Caching
+
+* cache-aside
+* TTL
+* invalidation
+* eviction
+* LRU/LFU concepts
+* cache stampede
+* cache penetration
+* hot keys
+* stale data
+* cache warming
+
+### Coordination
+
+* atomic operations
+* transactions
+* optimistic locking
+* Lua scripting
+* idempotency keys
+* rate limiting
+* distributed locks
+* Redlock analysis
+
+### Persistence
+
+* RDB
+* AOF
+* fsync strategies
+* restart recovery
+
+### High Availability
+
+* replication
+* Sentinel
+* automatic failover
+* Redis Cluster
+* hash slots
+* sharding
+* resharding
+* replica promotion
+
+### Failure Experiments
+
+* primary failure
+* replica lag
+* stale cache
+* network partition
+* cache flush
+* memory exhaustion
+* eviction storm
+* hot-key overload
+* cache stampede
+
+Tag:
+
+```text
+v10-redis
+```
+
+---
+
+# Stage 11 — Distributed Messaging
+
+## Goal
+
+Study queues and distributed event logs in depth.
+
+## RabbitMQ Topics
 
 * exchanges
 * queues
+* routing keys
 * bindings
 * acknowledgements
-* retries
+* publisher confirms
+* retry
 * dead-letter queues
 * quorum queues
 * prefetch
-* publisher confirms
-* idempotency
-* duplicate delivery
+* consumer crashes
 * poison messages
+* duplicate delivery
+* idempotency
+* backpressure
 
-### Kafka
+## Kafka Topics
 
+* brokers
 * topics
 * partitions
+* producers
+* consumers
 * consumer groups
 * offsets
 * replication
+* ISR
 * retention
+* compaction
 * ordering
+* replay
 * consumer lag
 * rebalancing
-* replay
 * delivery semantics
+
+## Comparison
+
+The project explicitly compares:
+
+```text
+Redis Pub/Sub
+Redis Streams
+RabbitMQ
+Kafka
+```
+
+to understand why these technologies solve different problems.
 
 Tag:
 
 ```text
-v10-messaging
+v11-messaging
 ```
 
 ---
 
-## Stage 11 — Distributed Storage
+# Stage 12 — Distributed Storage
 
-Add Ceph as the distributed storage layer.
+## Goal
 
-### Topics
+Build and operate distributed persistent storage.
 
-* MON
-* MGR
-* OSD
+## Topics
+
+* Ceph MON
+* Ceph MGR
+* Ceph OSD
 * RADOS
 * CRUSH
 * pools
@@ -1087,92 +1495,123 @@ Add Ceph as the distributed storage layer.
 Tag:
 
 ```text
-v11-ceph
+v12-ceph
 ```
 
 ---
 
 # Failure Engineering
 
-The platform is intentionally broken throughout the project.
+Failure is intentionally introduced throughout the laboratory.
 
-Failure scenarios include:
+---
 
-### Application
+## Application Failures
 
-* process crash
-* panic
+* Go panic
 * Python worker crash
+* incorrect configuration
 * memory exhaustion
 * CPU saturation
-* bad configuration
-* invalid deployment
+* slow dependency
+* invalid release
+* deadlock
+* goroutine leak
 
-### Network
+---
+
+## Network Failures
 
 * DNS failure
 * packet loss
 * high latency
+* connection reset
 * blocked port
 * TLS failure
-* unreachable dependency
 * gRPC deadline exceeded
-* connection reset
+* unreachable service
+* network partition
 
-### Kubernetes
+---
 
-* Pod crash
-* CrashLoopBackOff
-* failed readiness probe
-* node failure
-* broken Service
-* bad NetworkPolicy
-* resource exhaustion
+## Redis Failures
 
-### PostgreSQL
+* cache miss storm
+* stale cache
+* primary failure
+* replica failure
+* Sentinel failover
+* Redis Cluster node loss
+* hot-key overload
+* memory exhaustion
+* eviction storm
+* RDB/AOF recovery
+* cache/database inconsistency
+
+---
+
+## PostgreSQL Failures
 
 * primary failure
 * replication lag
 * full disk
 * broken connection pool
 * failed backup
-* failover failure
+* failed restore
+* incorrect promotion
+* connection exhaustion
 
-### RabbitMQ
+---
 
-* consumer failure
+## RabbitMQ Failures
+
+* broker failure
 * queue backlog
+* consumer crash
 * poison message
 * lost acknowledgement
 * duplicate delivery
 
-### Kafka
+---
+
+## Kafka Failures
 
 * broker failure
 * consumer lag
+* partition failure
 * rebalance
-* unavailable partition
 * duplicate processing
+* slow consumer
 
-### Ceph
+---
+
+## Kubernetes Failures
+
+* Pod crash
+* CrashLoopBackOff
+* bad readiness probe
+* failed node
+* broken Service
+* incorrect NetworkPolicy
+* exhausted resources
+* failed rollout
+
+---
+
+## Ceph Failures
 
 * OSD failure
-* degraded placement groups
 * node loss
-* recovery/rebalancing
-
-### Observability
-
-* Prometheus unavailable
-* missing metrics
-* broken alerts
-* centralized logging outage
+* degraded placement groups
+* disk failure
+* recovery
+* rebalancing
 
 ---
 
 # Incident Documentation
 
-Each significant failure should produce an incident report containing:
+Every meaningful failure should produce:
 
 ```text
 Incident title
@@ -1188,8 +1627,6 @@ Recovery time
 Corrective actions
 Runbook updates
 ```
-
-The goal is not only to repair failures, but to improve the system after each incident.
 
 ---
 
@@ -1217,17 +1654,11 @@ production-platform-lab/
 │   │
 │   ├── processing-service/
 │   │   ├── src/
-│   │   ├── tests/
-│   │   └── requirements.txt
+│   │   └── tests/
 │   │
 │   ├── analytics-service/
-│   │   └── ...
-│   │
 │   ├── audit-service/
-│   │   └── ...
-│   │
 │   └── notification-service/
-│       └── ...
 │
 ├── proto/
 │   ├── task/
@@ -1262,6 +1693,13 @@ production-platform-lab/
 │   ├── replication/
 │   ├── backup/
 │   └── restore/
+│
+├── redis/
+│   ├── standalone/
+│   ├── sentinel/
+│   ├── cluster/
+│   ├── benchmarks/
+│   └── failure-labs/
 │
 ├── messaging/
 │   ├── rabbitmq/
@@ -1299,12 +1737,12 @@ production-platform-lab/
 
 # Local Laboratory
 
-The complete environment is designed to run locally using Linux virtual machines.
+The complete environment runs using local Linux virtual machines.
 
 Example topology:
 
 ```text
-Host Machine
+Linux Host
 │
 ├── VM 1: GitLab / CI Runner / Registry
 ├── VM 2: Load Balancer
@@ -1314,7 +1752,7 @@ Host Machine
 └── VM 6: Monitoring / Storage
 ```
 
-Possible virtualization platforms:
+Virtualization:
 
 * KVM/QEMU
 * Libvirt
@@ -1322,204 +1760,221 @@ Possible virtualization platforms:
 * VirtualBox
 * VMware Workstation
 
-The virtual environment simulates:
+The environment simulates:
 
-* cloud private networks
-* VM instances
+* private networks
+* cloud instances
 * security groups
 * block storage
 * internal DNS
 * load balancers
 * private services
-* public services
+* public endpoints
 * node failures
-* network failures
+* network partitions
 
 Heavy components do not need to run simultaneously.
-
-For example:
-
-* run GitLab only while working on CI/CD
-* run heavy centralized logging only during observability labs
-* run Ceph as a dedicated stage
-* shut down unused virtual machines
 
 ---
 
 # Security Principles
 
-The project follows the following security practices:
-
 * no secrets committed to Git
 * SSH key authentication
-* least-privilege Linux users
-* service-specific users
-* TLS encryption
+* least-privilege service accounts
+* TLS
 * non-root containers
-* minimal container images
+* minimal images
 * Kubernetes RBAC
-* Kubernetes NetworkPolicies
+* NetworkPolicies
 * resource limits
 * protected CI/CD variables
-* secret rotation procedures
-* backup encryption where appropriate
-* isolated service credentials
-* independent database credentials
-* dependency and image scanning
-
-Example configuration committed to Git:
-
-```text
-.env.example
-vault.example.yml
-secrets.example.yaml
-```
-
-Real secrets remain excluded.
+* secret rotation
+* isolated database credentials
+* isolated Redis credentials
+* backup encryption where applicable
+* dependency scanning
+* container image scanning
 
 ---
 
 # Definition of Done
 
-A project stage is considered complete only when it contains:
+A stage is complete only when it includes:
 
-* working source code
+* working implementation
 * repeatable installation
-* automated deployment where applicable
+* automation where applicable
 * architecture documentation
 * health checks
 * metrics
 * logs
-* traces where applicable
-* backup procedure
-* successful restore test
+* traces where relevant
 * security considerations
+* backup procedures where relevant
+* restore testing
 * failure simulations
-* troubleshooting runbook
+* troubleshooting runbooks
 * clear documentation
 
-Installing a tool alone does **not** complete a stage.
+Installing a technology alone does **not** complete a stage.
 
 ---
 
 # Final Production Simulation
 
-The final demonstration should exercise the complete lifecycle.
+The final demonstration exercises the full software and infrastructure lifecycle.
 
 ```text
 1. Push a source-code change.
 
-2. Run automated tests.
+2. Run linting.
 
-3. Run contract and integration tests.
+3. Run Go and Python unit tests.
 
-4. Build Go and Python container images.
+4. Run integration tests.
 
-5. Scan the images.
+5. Run gRPC contract tests.
 
-6. Publish images to the registry.
+6. Build container images.
 
-7. Deploy to staging.
+7. Scan container images.
 
-8. Run smoke tests.
+8. Push images to the registry.
 
-9. Promote the release.
+9. Deploy to staging.
 
-10. Deploy to Kubernetes.
+10. Run smoke tests.
 
-11. Generate application traffic.
+11. Promote the release.
 
-12. Observe metrics in Grafana.
+12. Deploy to Kubernetes.
 
-13. Trace a request across multiple services.
+13. Generate application traffic.
 
-14. Inspect distributed logs.
+14. Observe Redis cache hits and misses.
 
-15. Observe RabbitMQ and Kafka activity.
+15. Observe PostgreSQL queries.
 
-16. Introduce a faulty release.
+16. Observe RabbitMQ queues.
 
-17. Detect the problem using alerts.
+17. Observe Kafka consumer lag.
 
-18. Investigate the incident.
+18. Trace a request across services.
 
-19. Roll back the deployment.
+19. View service metrics.
 
-20. Confirm service recovery.
+20. Search centralized logs.
 
-21. Simulate infrastructure failure.
+21. Introduce a faulty application release.
 
-22. Verify failover/recovery.
+22. Detect the incident through alerts.
 
-23. Publish an incident postmortem.
+23. Diagnose the problem.
+
+24. Roll back the deployment.
+
+25. Confirm recovery.
+
+26. Fail a Redis node.
+
+27. Verify Redis failover.
+
+28. Fail the PostgreSQL primary.
+
+29. Verify database recovery/failover.
+
+30. Fail a Kubernetes worker.
+
+31. Observe workload rescheduling.
+
+32. Fail a Ceph OSD.
+
+33. Observe distributed-storage recovery.
+
+34. Publish incident postmortems.
 ```
 
 ---
 
 # Distributed Systems Concepts Demonstrated
 
-The laboratory intentionally exposes important distributed-system problems including:
+The laboratory intentionally explores:
 
 * partial failure
 * unreliable networks
 * timeouts
+* cancellation
 * retries
 * exponential backoff
 * jitter
 * duplicate requests
 * idempotency
 * eventual consistency
+* strong vs weak consistency
 * replication
-* consistency trade-offs
+* leader/follower systems
+* failover
+* quorum concepts
+* sharding
+* caching
+* cache invalidation
+* stale reads
+* distributed coordination
 * message ordering
-* consumer coordination
-* queue backpressure
 * event replay
-* failure detection
+* consumer coordination
+* backpressure
 * service discovery
 * load balancing
+* horizontal scaling
 * distributed tracing
 * graceful degradation
-* horizontal scaling
-* leader/follower database architecture
-* stateful vs stateless workloads
-* data ownership
-* service boundaries
 * fault isolation
+* data ownership
+* stateless vs stateful workloads
 
 ---
 
 # Skills Demonstrated
 
-This project demonstrates practical ability in:
+This project demonstrates practical experience in:
 
 * Software Engineering
 * Go
 * Python
+* Bash
+* SQL
 * Linux Engineering
 * DevOps
 * Platform Engineering
 * Site Reliability Engineering
 * Distributed Systems
-* TCP/IP Networking
+* Networking
+* TCP/IP
+* HTTP/2
+* gRPC
+* Protocol Buffers
 * Infrastructure Automation
-* Infrastructure as Code
 * CI/CD
 * Containers
 * Kubernetes
-* gRPC
-* Event-Driven Architecture
+* PostgreSQL
+* Redis
 * RabbitMQ
 * Kafka
-* PostgreSQL
+* Event-Driven Architecture
 * Database High Availability
-* Observability
-* OpenTelemetry
+* Distributed Caching
 * Distributed Storage
+* Prometheus
+* Grafana
+* OpenTelemetry
+* Observability
 * Security Engineering
+* Failure Engineering
 * Incident Response
 * Disaster Recovery
-* Failure Engineering
 
 ---
 
@@ -1536,8 +1991,9 @@ This project demonstrates practical ability in:
 [ ] Stage 7  — Observability
 [ ] Stage 8  — SRE Practices
 [ ] Stage 9  — PostgreSQL High Availability
-[ ] Stage 10 — Distributed Messaging
-[ ] Stage 11 — Distributed Storage
+[ ] Stage 10 — Redis & Distributed Caching
+[ ] Stage 11 — Distributed Messaging
+[ ] Stage 12 — Distributed Storage
 [ ] Final Production Simulation
 ```
 
@@ -1545,37 +2001,39 @@ This project demonstrates practical ability in:
 
 # Engineering Philosophy
 
-This repository intentionally avoids treating infrastructure technologies as isolated tools.
-
-The project follows a progression:
+The project follows this progression:
 
 ```text
-Understand manually
-        ↓
-Operate manually
-        ↓
-Observe failure
-        ↓
+Understand
+    ↓
+Implement manually
+    ↓
+Observe behavior
+    ↓
+Introduce failure
+    ↓
+Debug
+    ↓
 Automate
-        ↓
+    ↓
 Containerize
-        ↓
+    ↓
 Orchestrate
-        ↓
-Measure
-        ↓
+    ↓
+Observe
+    ↓
 Scale
-        ↓
-Break
-        ↓
+    ↓
+Fail
+    ↓
 Recover
-        ↓
+    ↓
 Improve
 ```
 
-The emphasis is not on memorizing commands.
+The emphasis is not on memorizing commands or collecting technologies.
 
-The emphasis is on understanding **why production systems behave the way they do**.
+The emphasis is on understanding **how production distributed systems actually behave**.
 
 ---
 
@@ -1583,13 +2041,13 @@ The emphasis is on understanding **why production systems behave the way they do
 
 This repository is an educational and portfolio laboratory.
 
-It simulates production engineering practices but should not be treated as a complete production platform without additional:
+It simulates production engineering practices but should not be considered a complete production platform without additional:
 
 * threat modeling
 * security review
-* capacity planning
 * compliance controls
-* load testing
+* capacity planning
+* performance testing
 * chaos testing
 * organizational processes
 * production-specific operational controls

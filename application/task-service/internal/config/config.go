@@ -16,7 +16,7 @@ type Config struct {
 func Load() (Config, error) {
 	cfg := Config{
 		Host:            envOrDefault("TASK_SERVICE_HOST", "127.0.0.1"),
-		Port:            8084,
+		Port:            8089,
 		ShutdownTimeout: 10 * time.Second,
 	}
 

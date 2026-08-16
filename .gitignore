@@ -1,0 +1,25 @@
+# Build artifacts
+bin/
+dist/
+build/
+
+# Go
+coverage.out
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Editors
+.idea/
+.vscode/
+
+# OS
+.DS_Store

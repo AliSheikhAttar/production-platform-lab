@@ -13,6 +13,7 @@ import (
 
 	"github.com/alisheikhattar/production-platform-lab/application/task-service/internal/config"
 	"github.com/alisheikhattar/production-platform-lab/application/task-service/internal/httpapi"
+	"github.com/alisheikhattar/production-platform-lab/application/task-service/internal/task"
 )
 
 func main() {
@@ -35,7 +36,12 @@ func run() int {
 		return 1
 	}
 
-	handler := httpapi.NewHandler(logger)
+	repository := task.NewMemoryRepository()
+
+	handler := httpapi.NewHandler(
+		logger,
+		repository,
+	)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 

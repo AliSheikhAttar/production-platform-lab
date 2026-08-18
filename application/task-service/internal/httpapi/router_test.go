@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/alisheikhattar/production-platform-lab/application/task-service/internal/task"
 )
 
 func TestLiveness(t *testing.T) {
@@ -13,7 +15,12 @@ func TestLiveness(t *testing.T) {
 		slog.NewTextHandler(io.Discard, nil),
 	)
 
-	handler := NewHandler(logger)
+	repository := task.NewMemoryRepository()
+
+	handler := NewHandler(
+		logger,
+		repository,
+	)
 
 	request := httptest.NewRequest(
 		http.MethodGet,

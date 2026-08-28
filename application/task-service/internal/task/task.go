@@ -1,6 +1,7 @@
 package task
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -25,8 +26,23 @@ type Task struct {
 var ErrNotFound = errors.New("task not found")
 
 type Repository interface {
-	Create(title string) Task
-	Get(id int64) (Task, error)
-	List() []Task
-	UpdateStatus(id int64, status Status) (Task, error)
+	Create(
+		ctx context.Context,
+		title string,
+	) (Task, error)
+
+	Get(
+		ctx context.Context,
+		id int64,
+	) (Task, error)
+
+	List(
+		ctx context.Context,
+	) ([]Task, error)
+
+	UpdateStatus(
+		ctx context.Context,
+		id int64,
+		status Status,
+	) (Task, error)
 }

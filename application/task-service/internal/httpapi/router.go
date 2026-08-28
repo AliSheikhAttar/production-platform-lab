@@ -86,7 +86,25 @@ func (h *Handler) createTask(
 		return
 	}
 
-	t := h.tasks.Create(request.Title)
+	t, err := h.tasks.Create(
+		r.Context(),
+		request.Title,
+	)
+	if err != nil {
+		h.logger.Error(
+			"create task failed",
+			slog.String("error", err.Error()),
+		)
+
+		writeJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{
+				"error": "internal server error",
+			},
+		)
+		return
+	}
 
 	writeJSON(w, http.StatusCreated, t)
 }
@@ -95,7 +113,22 @@ func (h *Handler) listTasks(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	tasks := h.tasks.List()
+	tasks, err := h.tasks.List(r.Context())
+	if err != nil {
+		h.logger.Error(
+			"list tasks failed",
+			slog.String("error", err.Error()),
+		)
+
+		writeJSON(
+			w,
+			http.StatusInternalServerError,
+			map[string]string{
+				"error": "internal server error",
+			},
+		)
+		return
+	}
 
 	writeJSON(w, http.StatusOK, tasks)
 }
@@ -112,7 +145,7 @@ func (h *Handler) getTask(
 		return
 	}
 
-	t, err := h.tasks.Get(id)
+	t, err := h.tasks.Get(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, task.ErrNotFound) {
 			writeJSON(w, http.StatusNotFound, map[string]string{
@@ -158,7 +191,11 @@ func (h *Handler) updateTask(
 		return
 	}
 
-	t, err := h.tasks.UpdateStatus(id, request.Status)
+	t, err := h.tasks.UpdateStatus(
+		r.Context(),
+		id,
+		request.Status,
+	)
 	if err != nil {
 		if errors.Is(err, task.ErrNotFound) {
 			writeJSON(w, http.StatusNotFound, map[string]string{

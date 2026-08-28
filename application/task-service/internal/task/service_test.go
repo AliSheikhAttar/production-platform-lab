@@ -1,6 +1,7 @@
 package task
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -8,40 +9,59 @@ import (
 
 func TestMemoryRepository_Create(t *testing.T) {
 	repo := NewMemoryRepository()
+	ctx := context.Background()
 
-	task := repo.Create("Learn Go")
-
-	if task.ID != 1 {
-		t.Errorf("expected ID 1, got %d", task.ID)
+	created, err := repo.Create(
+		ctx,
+		"Learn Go",
+	)
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
 	}
 
-	if task.Title != "Learn Go" {
-		t.Errorf("expected title %q, got %q", "Learn Go", task.Title)
+	if created.ID != 1 {
+		t.Errorf("expected ID 1, got %d", created.ID)
 	}
 
-	if task.Status != StatusPending {
-		t.Errorf("expected status %q, got %q", StatusPending, task.Status)
+	if created.Title != "Learn Go" {
+		t.Errorf("expected title %q, got %q", "Learn Go", created.Title)
 	}
 
-	if task.CreatedAt.IsZero() {
+	if created.Status != StatusPending {
+		t.Errorf("expected status %q, got %q", StatusPending, created.Status)
+	}
+
+	if created.CreatedAt.IsZero() {
 		t.Error("expected CreatedAt to be set")
 	}
 
-	if task.UpdatedAt.IsZero() {
+	if created.UpdatedAt.IsZero() {
 		t.Error("expected UpdatedAt to be set")
 	}
 
-	if !task.CreatedAt.Equal(task.UpdatedAt) {
+	if !created.CreatedAt.Equal(created.UpdatedAt) {
 		t.Error("expected CreatedAt and UpdatedAt to initially be equal")
 	}
 }
 
 func TestMemoryRepository_Create_AssignsIncrementingIDs(t *testing.T) {
 	repo := NewMemoryRepository()
+	ctx := context.Background()
 
-	task1 := repo.Create("Task 1")
-	task2 := repo.Create("Task 2")
-	task3 := repo.Create("Task 3")
+	task1, err := repo.Create(ctx, "Task 1")
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	task2, err := repo.Create(ctx, "Task 2")
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	task3, err := repo.Create(ctx, "Task 3")
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
 
 	if task1.ID != 1 {
 		t.Errorf("expected first ID 1, got %d", task1.ID)
@@ -58,10 +78,14 @@ func TestMemoryRepository_Create_AssignsIncrementingIDs(t *testing.T) {
 
 func TestMemoryRepository_Get(t *testing.T) {
 	repo := NewMemoryRepository()
+	ctx := context.Background()
 
-	created := repo.Create("Learn PostgreSQL")
+	created, err := repo.Create(ctx, "Learn PostgreSQL")
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
 
-	got, err := repo.Get(created.ID)
+	got, err := repo.Get(ctx, created.ID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -81,8 +105,9 @@ func TestMemoryRepository_Get(t *testing.T) {
 
 func TestMemoryRepository_Get_NotFound(t *testing.T) {
 	repo := NewMemoryRepository()
+	ctx := context.Background()
 
-	_, err := repo.Get(999)
+	_, err := repo.Get(ctx, 999)
 
 	if err != ErrNotFound {
 		t.Errorf("expected ErrNotFound, got %v", err)
@@ -91,12 +116,24 @@ func TestMemoryRepository_Get_NotFound(t *testing.T) {
 
 func TestMemoryRepository_List(t *testing.T) {
 	repo := NewMemoryRepository()
+	ctx := context.Background()
 
-	repo.Create("Task 1")
-	repo.Create("Task 2")
-	repo.Create("Task 3")
+	if _, err := repo.Create(ctx, "Task 1"); err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
 
-	tasks := repo.List()
+	if _, err := repo.Create(ctx, "Task 2"); err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	if _, err := repo.Create(ctx, "Task 3"); err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	tasks, err := repo.List(ctx)
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
 
 	if len(tasks) != 3 {
 		t.Fatalf("expected 3 tasks, got %d", len(tasks))
@@ -105,8 +142,12 @@ func TestMemoryRepository_List(t *testing.T) {
 
 func TestMemoryRepository_List_Empty(t *testing.T) {
 	repo := NewMemoryRepository()
+	ctx := context.Background()
 
-	tasks := repo.List()
+	tasks, err := repo.List(ctx)
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
 
 	if len(tasks) != 0 {
 		t.Fatalf("expected 0 tasks, got %d", len(tasks))
@@ -115,13 +156,18 @@ func TestMemoryRepository_List_Empty(t *testing.T) {
 
 func TestMemoryRepository_UpdateStatus(t *testing.T) {
 	repo := NewMemoryRepository()
+	ctx := context.Background()
 
-	created := repo.Create("Process report")
+	created, err := repo.Create(ctx, "Process report")
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
 
 	// Small delay so UpdatedAt should definitely change.
 	time.Sleep(time.Millisecond)
 
 	updated, err := repo.UpdateStatus(
+		ctx,
 		created.ID,
 		StatusProcessing,
 	)
@@ -142,7 +188,7 @@ func TestMemoryRepository_UpdateStatus(t *testing.T) {
 	}
 
 	// Verify the change was actually persisted.
-	got, err := repo.Get(created.ID)
+	got, err := repo.Get(ctx, created.ID)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -158,8 +204,13 @@ func TestMemoryRepository_UpdateStatus(t *testing.T) {
 
 func TestMemoryRepository_UpdateStatus_NotFound(t *testing.T) {
 	repo := NewMemoryRepository()
+	ctx := context.Background()
 
-	_, err := repo.UpdateStatus(999, StatusCompleted)
+	_, err := repo.UpdateStatus(
+		ctx,
+		999,
+		StatusCompleted,
+	)
 
 	if err != ErrNotFound {
 		t.Errorf("expected ErrNotFound, got %v", err)
@@ -168,23 +219,37 @@ func TestMemoryRepository_UpdateStatus_NotFound(t *testing.T) {
 
 func TestMemoryRepository_ConcurrentCreate(t *testing.T) {
 	repo := NewMemoryRepository()
+	ctx := context.Background()
 
 	const goroutines = 100
 
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
 
+	errs := make(chan error, goroutines)
+
 	for range goroutines {
 		go func() {
 			defer wg.Done()
 
-			repo.Create("task")
+			_, err := repo.Create(ctx, "task")
+			if err != nil {
+				errs <- err
+			}
 		}()
 	}
 
 	wg.Wait()
+	close(errs)
 
-	tasks := repo.List()
+	for err := range errs {
+		t.Errorf("Create returned error: %v", err)
+	}
+
+	tasks, err := repo.List(ctx)
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
 
 	if len(tasks) != goroutines {
 		t.Fatalf(

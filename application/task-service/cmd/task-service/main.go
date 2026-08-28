@@ -13,7 +13,9 @@ import (
 
 	"github.com/alisheikhattar/production-platform-lab/application/task-service/internal/config"
 	"github.com/alisheikhattar/production-platform-lab/application/task-service/internal/httpapi"
-	"github.com/alisheikhattar/production-platform-lab/application/task-service/internal/task"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/alisheikhattar/production-platform-lab/application/task-service/internal/postgresrepo"
 )
 
 func main() {
@@ -36,7 +38,34 @@ func run() int {
 		return 1
 	}
 
-	repository := task.NewMemoryRepository()
+	dbCtx, dbCancel := context.WithTimeout(
+		context.Background(),
+		5*time.Second,
+	)
+	defer dbCancel()
+
+	pool, err := pgxpool.New(
+		dbCtx,
+		cfg.DatabaseURL,
+	)
+	if err != nil {
+		logger.Error(
+			"database pool creation failed",
+			slog.String("error", err.Error()),
+		)
+		return 1
+	}
+	defer pool.Close()
+
+	if err := pool.Ping(dbCtx); err != nil {
+		logger.Error(
+			"database connection failed",
+			slog.String("error", err.Error()),
+		)
+		return 1
+	}
+
+	repository := postgresrepo.NewTaskRepository(pool)
 
 	handler := httpapi.NewHandler(
 		logger,

@@ -1,8 +1,14 @@
 package task
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
-func (r *MemoryRepository) Create(title string) Task {
+func (r *MemoryRepository) Create(
+	_ context.Context,
+	title string,
+) (Task, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -19,10 +25,13 @@ func (r *MemoryRepository) Create(title string) Task {
 	r.tasks[t.ID] = t
 	r.nextID++
 
-	return t
+	return t, nil
 }
 
-func (r *MemoryRepository) Get(id int64) (Task, error) {
+func (r *MemoryRepository) Get(
+	_ context.Context,
+	id int64,
+) (Task, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -34,7 +43,9 @@ func (r *MemoryRepository) Get(id int64) (Task, error) {
 	return t, nil
 }
 
-func (r *MemoryRepository) List() []Task {
+func (r *MemoryRepository) List(
+	_ context.Context,
+) ([]Task, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -44,10 +55,11 @@ func (r *MemoryRepository) List() []Task {
 		tasks = append(tasks, t)
 	}
 
-	return tasks
+	return tasks, nil
 }
 
 func (r *MemoryRepository) UpdateStatus(
+	_ context.Context,
 	id int64,
 	status Status,
 ) (Task, error) {

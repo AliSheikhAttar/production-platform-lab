@@ -11,6 +11,7 @@ type Config struct {
 	Host            string
 	Port            int
 	ShutdownTimeout time.Duration
+	DatabaseURL     string
 }
 
 func Load() (Config, error) {
@@ -34,6 +35,15 @@ func Load() (Config, error) {
 
 		cfg.Port = port
 	}
+
+	databaseURL := os.Getenv("TASK_SERVICE_DATABASE_URL")
+
+	if databaseURL == "" {
+		return Config{},
+			fmt.Errorf("TASK_SERVICE_DATABASE_URL is required")
+	}
+
+	cfg.DatabaseURL = databaseURL
 
 	return cfg, nil
 }

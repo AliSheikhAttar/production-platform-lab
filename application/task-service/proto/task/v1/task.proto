@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package task.v1;
+
+option go_package = "github.com/alisheikhattar/production-platform-lab/application/task-service/gen/task/v1;taskv1";
+
+message Task {
+  int64 id = 1;
+  string title = 2;
+  string status = 3;
+}
+
+message CreateTaskRequest {
+  string title = 1;
+}
+
+message CreateTaskResponse {
+  Task task = 1;
+}
+
+message GetTaskRequest {
+  int64 id = 1;
+}
+
+message GetTaskResponse {
+  Task task = 1;
+}
+
+message ListTasksRequest {}
+
+message ListTasksResponse {
+  repeated Task tasks = 1;
+}
+
+service TaskService {
+  rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse);
+  rpc GetTask(GetTaskRequest) returns (GetTaskResponse);
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+}

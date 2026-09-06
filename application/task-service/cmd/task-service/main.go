@@ -2,20 +2,21 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	taskv1 "github.com/alisheikhattar/production-platform-lab/application/task-service/gen/task/v1"
 	"github.com/alisheikhattar/production-platform-lab/application/task-service/internal/config"
-	"github.com/alisheikhattar/production-platform-lab/application/task-service/internal/httpapi"
-	"github.com/jackc/pgx/v5/pgxpool"
-
+	"github.com/alisheikhattar/production-platform-lab/application/task-service/internal/grpcapi"
 	"github.com/alisheikhattar/production-platform-lab/application/task-service/internal/postgresrepo"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -67,20 +68,20 @@ func run() int {
 
 	repository := postgresrepo.NewTaskRepository(pool)
 
-	handler := httpapi.NewHandler(
-		logger,
-		repository,
-	)
+	grpcAddr := fmt.Sprintf("%s:%d", cfg.Host, cfg.GRPCPort)
 
-	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	grpcServer := grpc.NewServer()
+	taskServer := grpcapi.NewServer(repository)
+	taskv1.RegisterTaskServiceServer(grpcServer, taskServer)
+	reflection.Register(grpcServer)
 
-	server := &http.Server{
-		Addr:              addr,
-		Handler:           handler.Routes(),
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      15 * time.Second,
-		IdleTimeout:       60 * time.Second,
+	listener, err := net.Listen("tcp", grpcAddr)
+	if err != nil {
+		logger.Error(
+			"grpc listener failed",
+			slog.String("error", err.Error()),
+		)
+		return 1
 	}
 
 	signalCtx, stop := signal.NotifyContext(
@@ -94,18 +95,18 @@ func run() int {
 
 	go func() {
 		logger.Info(
-			"task service starting",
-			slog.String("address", addr),
+			"grpc server starting",
+			slog.String("address", grpcAddr),
 		)
 
-		serverErrors <- server.ListenAndServe()
+		serverErrors <- grpcServer.Serve(listener)
 	}()
 
 	select {
 	case err := <-serverErrors:
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err != nil {
 			logger.Error(
-				"http server failed",
+				"grpc server failed",
 				slog.String("error", err.Error()),
 			)
 			return 1
@@ -118,19 +119,7 @@ func run() int {
 		)
 	}
 
-	shutdownCtx, cancel := context.WithTimeout(
-		context.Background(),
-		cfg.ShutdownTimeout,
-	)
-	defer cancel()
-
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		logger.Error(
-			"graceful shutdown failed",
-			slog.String("error", err.Error()),
-		)
-		return 1
-	}
+	grpcServer.GracefulStop()
 
 	logger.Info("task service stopped")
 

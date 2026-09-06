@@ -9,7 +9,7 @@ import (
 
 type Config struct {
 	Host            string
-	Port            int
+	GRPCPort        int
 	ShutdownTimeout time.Duration
 	DatabaseURL     string
 }
@@ -17,23 +17,23 @@ type Config struct {
 func Load() (Config, error) {
 	cfg := Config{
 		Host:            envOrDefault("TASK_SERVICE_HOST", "127.0.0.1"),
-		Port:            8089,
+		GRPCPort:        9091,
 		ShutdownTimeout: 10 * time.Second,
 	}
 
-	if value := os.Getenv("TASK_SERVICE_PORT"); value != "" {
+	if value := os.Getenv("TASK_SERVICE_GRPC_PORT"); value != "" {
 		port, err := strconv.Atoi(value)
 		if err != nil {
-			return Config{}, fmt.Errorf("invalid TASK_SERVICE_PORT: %w", err)
+			return Config{}, fmt.Errorf("invalid TASK_SERVICE_GRPC_PORT: %w", err)
 		}
 
 		if port < 1 || port > 65535 {
 			return Config{}, fmt.Errorf(
-				"TASK_SERVICE_PORT must be between 1 and 65535",
+				"TASK_SERVICE_GRPC_PORT must be between 1 and 65535",
 			)
 		}
 
-		cfg.Port = port
+		cfg.GRPCPort = port
 	}
 
 	databaseURL := os.Getenv("TASK_SERVICE_DATABASE_URL")

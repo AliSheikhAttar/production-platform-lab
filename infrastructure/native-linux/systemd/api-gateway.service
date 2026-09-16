@@ -1,0 +1,24 @@
+[Unit]
+Description=TaskFlow API Gateway (HTTP)
+Documentation=file:///home/asa/asa/production-platform-lab/README.md
+After=network-online.target task-service.service
+Wants=network-online.target
+Requires=task-service.service
+
+[Service]
+Type=simple
+User=asa
+Group=asa
+WorkingDirectory=/home/asa/asa/production-platform-lab/application/api-gateway
+EnvironmentFile=/etc/taskflow/api-gateway.env
+ExecStart=/home/asa/asa/production-platform-lab/application/api-gateway/bin/gateway
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=api-gateway
+
+[Install]
+WantedBy=multi-user.target

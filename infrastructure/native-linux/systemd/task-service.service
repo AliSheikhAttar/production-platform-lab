@@ -1,0 +1,25 @@
+[Unit]
+Description=TaskFlow Task Service (gRPC)
+Documentation=file:///home/asa/asa/production-platform-lab/README.md
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=asa
+Group=asa
+WorkingDirectory=/home/asa/asa/production-platform-lab/application/task-service
+EnvironmentFile=/etc/taskflow/task-service.env
+ExecStart=/home/asa/asa/production-platform-lab/application/task-service/bin/task-service
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+
+# journald captures structured JSON logs from stdout
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=task-service
+
+[Install]
+WantedBy=multi-user.target

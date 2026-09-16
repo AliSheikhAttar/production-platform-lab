@@ -2,7 +2,7 @@
 
 A project-based **DevOps, Platform Engineering, Site Reliability Engineering, and Distributed Systems laboratory** that builds a production-style polyglot microservice platform from the ground up.
 
-The project begins with small application services running directly on Linux and gradually evolves into an automated, containerized, observable, highly available Kubernetes platform.
+The project begins with small application services running directly on Linux and gradually evolves into an automated, containerized, cloud-provisioned, GitOps-delivered, observable, highly available Kubernetes platform.
 
 The objective is **not simply to install DevOps technologies**.
 
@@ -71,9 +71,11 @@ This laboratory develops hands-on experience with:
 
 ## Infrastructure & DevOps
 
-* KVM/QEMU
+* KVM/QEMU (enough to run the lab, not a target of mastery)
 * Libvirt
 * Ansible
+* Terraform / OpenTofu
+* a real cloud provider account (AWS, GCP, or Azure)
 * Docker
 * OCI containers
 * containerd
@@ -81,7 +83,8 @@ This laboratory develops hands-on experience with:
 * container registries
 * Kubernetes
 * Helm
-* Infrastructure as Code concepts
+* GitOps (ArgoCD or Flux)
+* Infrastructure as Code, applied for real — not just read about
 
 ## Data & Distributed Systems
 
@@ -89,7 +92,7 @@ This laboratory develops hands-on experience with:
 * Redis
 * RabbitMQ
 * Kafka
-* Ceph
+* Ceph (optional / stretch)
 * replication
 * caching
 * sharding
@@ -111,8 +114,23 @@ This laboratory develops hands-on experience with:
 * SLA
 * error budgets
 * incident response
+* chaos engineering
 * disaster recovery
 * failure engineering
+
+---
+
+# Core Path vs. Stretch Path
+
+This project is deliberately larger than any single career transition requires. Treat it as two paths, not one long checklist.
+
+**Core path — Stage 0 through Stage 9.**
+This is where almost all of the signal relevant to an SRE or platform engineering interview lives: the application itself, networking, real infrastructure-as-code against a cloud provider, containers, CI/CD, Kubernetes, GitOps, observability, and SRE practices — including deliberate failure injection and postmortems. Complete this path at solid depth before spending significant time further down.
+
+**Stretch path — Stage 10 through Stage 13.**
+PostgreSQL HA, Redis HA, deep messaging internals, and distributed storage extend the same distributed-systems muscles into more specialized territory. Valuable, but not required to be hireable, and safe to do unevenly, partially, or skip under time pressure. Stage 13 (distributed storage) is explicitly optional — see that stage for why.
+
+If you have a few months rather than a year, finishing the core path well and picking one or two stretch stages to go deep on will produce a stronger portfolio than spreading thin across all fourteen stages.
 
 ---
 
@@ -658,14 +676,17 @@ Kafka
 
 ```text
 Linux
-KVM / QEMU
-Libvirt
+KVM / QEMU (lab only)
+Libvirt (lab only)
 Ansible
+Terraform / OpenTofu
+A major cloud provider (AWS, GCP, or Azure — pick one)
 Docker
 OCI
 containerd
 Kubernetes
 Helm
+ArgoCD or Flux
 ```
 
 ## Networking
@@ -697,7 +718,7 @@ Centralized Logging
 Distributed Tracing
 ```
 
-## Storage
+## Storage (optional / stretch)
 
 ```text
 Ceph
@@ -723,20 +744,26 @@ Container Registry
 ```text
                               Developers
                                   │
-                                  ▼
-                           Git Repository
-                                  │
-                                  ▼
-                             CI/CD Pipeline
-                      ┌───────────┼───────────┐
-                      │           │           │
-                    Tests       Build       Scan
-                                  │
-                                  ▼
-                          Container Registry
-                                  │
-                                  ▼
-                        Kubernetes Cluster
+                     ┌────────────┴────────────┐
+                     │                         │
+              Application Code           Infrastructure Code
+                     │                         │
+                     ▼                         ▼
+               CI/CD Pipeline               Terraform
+          ┌────────┼────────┐                 │
+          │        │        │                 ▼
+        Tests    Build    Scan          Cloud Provider
+                   │                    (network, compute,
+                   ▼                     Kubernetes cluster)
+          Container Registry                   │
+                   │                            │
+                   ▼                            │
+         Update GitOps Manifests                │
+                   │                            │
+                   ▼                            ▼
+             ArgoCD / Flux ─────────► Kubernetes Cluster
+             (reconciles cluster
+              state from Git)
                                   │
  ┌────────────────────────────────┼────────────────────────────────┐
  │                                │                                │
@@ -757,7 +784,7 @@ replicas                       replicas                       autoscaled
                 Analytics     Audit    Notifications
                                 │
                                 ▼
-                              Ceph
+                    Ceph (optional / stretch)
 ```
 
 ---
@@ -926,7 +953,7 @@ Topics:
 
 # Project Stages
 
-Each stage builds on the problems and knowledge developed in earlier stages.
+Each stage builds on the problems and knowledge developed in earlier stages. See "Core Path vs. Stretch Path" above for how to prioritize these under time pressure.
 
 ---
 
@@ -1051,17 +1078,19 @@ v2-networking-tls
 
 ---
 
-# Stage 3 — Ansible Automation
+# Stage 3 — Infrastructure as Code
 
 ## Goal
 
-Convert manually configured infrastructure into reproducible automation.
+Convert manually configured infrastructure into reproducible, version-controlled automation — both configuration (Ansible) and provisioning (Terraform), against a real cloud provider.
 
 ## Contribution
 
-Eliminates configuration drift and makes environments reproducible.
+Eliminates configuration drift, makes environments reproducible, and introduces the provisioning workflow (plan → review → apply → state) that most SRE and platform roles are actually hired to operate.
 
 ## Topics
+
+### Configuration Management (Ansible)
 
 * inventories
 * playbooks
@@ -1072,13 +1101,28 @@ Eliminates configuration drift and makes environments reproducible.
 * Ansible Vault
 * idempotence
 * configuration drift
-* automated deployment
 * secret management
+
+### Provisioning (Terraform / OpenTofu)
+
+* providers
+* resources
+* variables and outputs
+* state
+* remote state and state locking
+* modules
+* workspaces
+* plan / apply / destroy
+* drift detection
+* importing existing infrastructure
+* provisioning a small footprint on a real cloud provider (network, compute, and — later, in Stage 6 — a Kubernetes cluster)
+
+This is the first stage where the lab stops being purely local. A single small node pool on a free-tier cloud account, provisioned and destroyed on demand, is enough — it does not need to run continuously.
 
 Tag:
 
 ```text
-v3-ansible
+v3-infrastructure-as-code
 ```
 
 ---
@@ -1142,14 +1186,16 @@ Security Scan
   ↓
 Push Images
   ↓
-Deploy Staging
+Update GitOps Manifest (staging)
   ↓
 Smoke Tests
   ↓
 Approval
   ↓
-Production
+Update GitOps Manifest (production)
 ```
+
+At this stage, "deploy" means committing a new image tag to a manifest repository — not pushing directly to the cluster. The actual deployment mechanism, a controller reconciling that manifest into the cluster, is covered in Stage 7.
 
 ## Topics
 
@@ -1219,7 +1265,44 @@ v6-kubernetes
 
 ---
 
-# Stage 7 — Observability
+# Stage 7 — GitOps & Progressive Delivery
+
+## Goal
+
+Replace direct `kubectl apply` / `helm upgrade` from the pipeline with a Git-driven, reconciled deployment model.
+
+## Contribution
+
+This is close to the default deployment pattern in real platform and SRE roles: the CI pipeline builds, tests, and pushes an image, then updates a manifest in a Git repository; a controller running in the cluster continuously reconciles actual state to match that repository, rather than being told to deploy once. It also gives you an audit trail (every deployment is a commit) and a trivial rollback path (revert the commit).
+
+## Topics
+
+* declarative vs. imperative deployment
+* the reconciliation loop
+* ArgoCD or Flux (pick one — the pattern matters more than the specific tool)
+* application manifests vs. Helm charts vs. Kustomize overlays
+* environment promotion (dev → staging → production) via branches or directories
+* drift detection and self-healing
+* automated sync vs. manual approval gates
+* progressive delivery: canary or blue/green rollouts
+* automated rollback on failed health checks
+* secrets in a GitOps world (sealed-secrets, external-secrets, or a vault integration)
+
+## Failure Experiments
+
+* deploy a broken manifest and watch the controller's health checks catch it
+* manually edit a live resource (`kubectl edit`) and watch GitOps revert the drift
+* force a rollback via Git revert instead of `kubectl rollout undo`
+
+Tag:
+
+```text
+v7-gitops
+```
+
+---
+
+# Stage 8 — Observability
 
 ## Goal
 
@@ -1250,16 +1333,16 @@ Make the distributed platform measurable and debuggable.
 Tag:
 
 ```text
-v7-observability
+v8-observability
 ```
 
 ---
 
-# Stage 8 — SRE Practices
+# Stage 9 — SRE Practices
 
 ## Goal
 
-Turn monitoring into measurable reliability engineering.
+Turn monitoring into measurable reliability engineering, and formalize the failure injection that's been happening informally since Stage 0.
 
 ## Topics
 
@@ -1274,6 +1357,8 @@ Turn monitoring into measurable reliability engineering.
 * postmortems
 * toil
 * capacity planning
+* chaos engineering (Chaos Mesh or Litmus) — turn manual "kill the primary" experiments into scheduled, automated, and progressively more targeted fault injection
+* game days — a scheduled exercise where you page yourself, work from the runbook, and time your own response
 
 Example SLO:
 
@@ -1282,15 +1367,19 @@ Example SLO:
 within 500 milliseconds over a rolling 30-day period.
 ```
 
+## Portfolio Note
+
+This stage produces your strongest interview material. Publish two or three of your best postmortems as short write-ups — a blog post, or a docs page in this repo: here's the failure you injected, here's what confused you during triage, here's what you changed afterward. That artifact demonstrates judgment under uncertainty directly, rather than leaving an interviewer to infer it from a list of technologies.
+
 Tag:
 
 ```text
-v8-sre
+v9-sre
 ```
 
 ---
 
-# Stage 9 — PostgreSQL High Availability
+# Stage 10 — PostgreSQL High Availability *(stretch)*
 
 ## Goal
 
@@ -1317,12 +1406,12 @@ Understand durable state, replication, database failure, and recovery.
 Tag:
 
 ```text
-v9-postgresql-ha
+v10-postgresql-ha
 ```
 
 ---
 
-# Stage 10 — Redis & Distributed Caching
+# Stage 11 — Redis & Distributed Caching *(stretch)*
 
 ## Goal
 
@@ -1400,12 +1489,12 @@ Adds a low-latency distributed state layer and exposes caching-specific consiste
 Tag:
 
 ```text
-v10-redis
+v11-redis
 ```
 
 ---
 
-# Stage 11 — Distributed Messaging
+# Stage 12 — Distributed Messaging *(stretch)*
 
 ## Goal
 
@@ -1461,48 +1550,60 @@ Kafka
 
 to understand why these technologies solve different problems.
 
+## If Time-Constrained
+
+Both systems are worth understanding conceptually, and the comparison itself is a useful distributed-systems lesson. If you need to cut scope, take one to full operational depth — Kafka is the more common requirement in current postings — and keep the other to its core topics plus a single deliberate failure experiment, rather than working the full topic list for both.
+
 Tag:
 
 ```text
-v11-messaging
+v12-messaging
 ```
 
 ---
 
-# Stage 12 — Distributed Storage
+# Stage 13 — Distributed Storage *(optional / stretch)*
 
 ## Goal
 
-Build and operate distributed persistent storage.
+Get hands-on with distributed storage internals — not to master Ceph operations, but to understand what a managed cloud block/object store is abstracting away from you.
 
-## Topics
+## Why This Is Optional
 
-* Ceph MON
-* Ceph MGR
-* Ceph OSD
-* RADOS
-* CRUSH
+Most companies run on managed cloud storage (EBS/S3, Persistent Disk/GCS, Azure Disk/Blob) rather than operating their own Ceph clusters, and hands-on Ceph administration appears in relatively few SRE postings outside storage-specialist or on-prem-heavy roles. Full CRUSH-map tuning and placement-group rebalancing are a large time investment for a comparatively narrow slice of the job market.
+
+## Recommended Scope
+
+Do a conceptual pass rather than the full topic list: bring up a small Ceph cluster, mount it through the Kubernetes CSI driver, fail one OSD, and watch recovery happen. That's enough to talk about distributed storage intelligently in an interview.
+
+## Topics (recommended scope)
+
+* Ceph MON / MGR / OSD, at a conceptual level
+* RADOS and CRUSH, at a conceptual level
+* replication and failure domains
+* Kubernetes CSI integration
+* one deliberate OSD-failure experiment
+
+## Full Topic List (if you choose to go deeper anyway)
+
 * pools
 * placement groups
-* replication
-* failure domains
 * RBD
 * CephFS
-* Kubernetes CSI
-* rebalancing
-* disk-failure recovery
+* resharding / rebalancing internals
+* disk-failure recovery at scale
 
 Tag:
 
 ```text
-v12-ceph
+v13-storage-optional
 ```
 
 ---
 
 # Failure Engineering
 
-Failure is intentionally introduced throughout the laboratory.
+Failure is intentionally introduced throughout the laboratory — manually at first, then increasingly automated through the chaos engineering tooling introduced in Stage 9.
 
 ---
 
@@ -1598,7 +1699,16 @@ Failure is intentionally introduced throughout the laboratory.
 
 ---
 
-## Ceph Failures
+## GitOps Failures
+
+* manual drift from desired state (`kubectl edit` on a GitOps-managed resource)
+* broken manifest merged to the tracked branch
+* failed reconciliation / sync error
+* stuck rollout with a failing health check
+
+---
+
+## Ceph Failures *(optional — see Stage 13)*
 
 * OSD failure
 * node loss
@@ -1668,7 +1778,10 @@ production-platform-lab/
 │   ├── virtual-machines/
 │   ├── cloud-init/
 │   ├── networking/
-│   └── ansible/
+│   ├── ansible/
+│   └── terraform/
+│       ├── modules/
+│       └── environments/
 │
 ├── containers/
 │   ├── gateway.Dockerfile
@@ -1687,6 +1800,10 @@ production-platform-lab/
 │
 ├── helm/
 │   └── taskflow/
+│
+├── gitops/
+│   ├── argocd/            # or flux/
+│   └── applications/
 │
 ├── database/
 │   ├── migrations/
@@ -1712,8 +1829,11 @@ production-platform-lab/
 │   ├── logging/
 │   └── opentelemetry/
 │
+├── chaos/
+│   └── experiments/
+│
 ├── storage/
-│   └── ceph/
+│   └── ceph/               # optional / stretch — see Stage 13
 │
 ├── security/
 │   ├── rbac/
@@ -1735,11 +1855,11 @@ production-platform-lab/
 
 ---
 
-# Local Laboratory
+# Local Laboratory & Cloud Footprint
 
-The complete environment runs using local Linux virtual machines.
+Stages 0–2 run entirely on local Linux virtual machines — deliberately cheap and fast to iterate on.
 
-Example topology:
+Example local topology:
 
 ```text
 Linux Host
@@ -1756,9 +1876,11 @@ Virtualization:
 
 * KVM/QEMU
 * Libvirt
-* Proxmox
-* VirtualBox
-* VMware Workstation
+* Proxmox, VirtualBox, or VMware Workstation (any one is fine)
+
+Treat the hypervisor layer as a means to an end, not a skill to master — enough to reliably run the lab, no more. The time investment belongs in what runs on top of it.
+
+From Stage 3 onward, a real cloud provider account (AWS, GCP, or Azure — pick one and stay there) is introduced for anything provisioned through Terraform, including, by Stage 6, the Kubernetes cluster itself. This does not need to run continuously: provision with `terraform apply`, do the stage's work, then `terraform destroy`. A free-tier account is sufficient for a small single-node-pool cluster run for a few hours at a time.
 
 The environment simulates:
 
@@ -1782,6 +1904,7 @@ Heavy components do not need to run simultaneously.
 * no secrets committed to Git
 * SSH key authentication
 * least-privilege service accounts
+* least-privilege IAM roles for CI/CD and Terraform service accounts
 * TLS
 * non-root containers
 * minimal images
@@ -1792,6 +1915,7 @@ Heavy components do not need to run simultaneously.
 * secret rotation
 * isolated database credentials
 * isolated Redis credentials
+* Terraform state stored remotely with locking, never committed to Git
 * backup encryption where applicable
 * dependency scanning
 * container image scanning
@@ -1804,6 +1928,7 @@ A stage is complete only when it includes:
 
 * working implementation
 * repeatable installation
+* infrastructure provisioned via Terraform, not created by hand
 * automation where applicable
 * architecture documentation
 * health checks
@@ -1826,73 +1951,79 @@ Installing a technology alone does **not** complete a stage.
 The final demonstration exercises the full software and infrastructure lifecycle.
 
 ```text
-1. Push a source-code change.
+ 0. Provision the cloud footprint and Kubernetes cluster with `terraform apply`.
 
-2. Run linting.
+ 1. Push a source-code change.
 
-3. Run Go and Python unit tests.
+ 2. Run linting.
 
-4. Run integration tests.
+ 3. Run Go and Python unit tests.
 
-5. Run gRPC contract tests.
+ 4. Run integration tests.
 
-6. Build container images.
+ 5. Run gRPC contract tests.
 
-7. Scan container images.
+ 6. Build container images.
 
-8. Push images to the registry.
+ 7. Scan container images.
 
-9. Deploy to staging.
+ 8. Push images to the registry.
 
-10. Run smoke tests.
+ 9. Update the GitOps manifest with the new image tag and commit.
 
-11. Promote the release.
+10. Watch ArgoCD/Flux reconcile staging automatically.
 
-12. Deploy to Kubernetes.
+11. Run smoke tests.
 
-13. Generate application traffic.
+12. Promote the release by merging to the production manifest path.
 
-14. Observe Redis cache hits and misses.
+13. Watch ArgoCD/Flux reconcile production.
 
-15. Observe PostgreSQL queries.
+14. Generate application traffic.
 
-16. Observe RabbitMQ queues.
+15. Observe Redis cache hits and misses.
 
-17. Observe Kafka consumer lag.
+16. Observe PostgreSQL queries.
 
-18. Trace a request across services.
+17. Observe RabbitMQ queues.
 
-19. View service metrics.
+18. Observe Kafka consumer lag.
 
-20. Search centralized logs.
+19. Trace a request across services.
 
-21. Introduce a faulty application release.
+20. View service metrics.
 
-22. Detect the incident through alerts.
+21. Search centralized logs.
 
-23. Diagnose the problem.
+22. Introduce a faulty application release.
 
-24. Roll back the deployment.
+23. Detect the incident through alerts.
 
-25. Confirm recovery.
+24. Diagnose the problem.
 
-26. Fail a Redis node.
+25. Roll back the deployment via a Git revert, not `kubectl rollout undo`.
 
-27. Verify Redis failover.
+26. Confirm recovery.
 
-28. Fail the PostgreSQL primary.
+27. Fail a Redis node.
 
-29. Verify database recovery/failover.
+28. Verify Redis failover.
 
-30. Fail a Kubernetes worker.
+29. Fail the PostgreSQL primary.
 
-31. Observe workload rescheduling.
+30. Verify database recovery/failover.
 
-32. Fail a Ceph OSD.
+31. Fail a Kubernetes worker.
 
-33. Observe distributed-storage recovery.
+32. Observe workload rescheduling.
 
-34. Publish incident postmortems.
+33. (Optional) Fail a Ceph OSD.
+
+34. (Optional) Observe distributed-storage recovery.
+
+35. Publish incident postmortems.
+
+36. Run `terraform destroy`, then confirm you can bring everything back with `terraform apply` plus a GitOps sync alone.
 ```
 
 ---
@@ -1956,7 +2087,10 @@ This project demonstrates practical experience in:
 * gRPC
 * Protocol Buffers
 * Infrastructure Automation
+* Infrastructure as Code (Terraform / OpenTofu)
+* Cloud Platforms (AWS / GCP / Azure)
 * CI/CD
+* GitOps (ArgoCD / Flux)
 * Containers
 * Kubernetes
 * PostgreSQL
@@ -1966,13 +2100,14 @@ This project demonstrates practical experience in:
 * Event-Driven Architecture
 * Database High Availability
 * Distributed Caching
-* Distributed Storage
+* Distributed Storage (optional/stretch)
 * Prometheus
 * Grafana
 * OpenTelemetry
 * Observability
 * Security Engineering
 * Failure Engineering
+* Chaos Engineering
 * Incident Response
 * Disaster Recovery
 
@@ -1984,16 +2119,18 @@ This project demonstrates practical experience in:
 [ ] Stage 0  — Application Foundation
 [ ] Stage 1  — Native Linux Services
 [ ] Stage 2  — Networking and TLS
-[ ] Stage 3  — Ansible Automation
+[ ] Stage 3  — Infrastructure as Code (Ansible + Terraform)
 [ ] Stage 4  — Containerization
 [ ] Stage 5  — CI/CD
 [ ] Stage 6  — Kubernetes
-[ ] Stage 7  — Observability
-[ ] Stage 8  — SRE Practices
-[ ] Stage 9  — PostgreSQL High Availability
-[ ] Stage 10 — Redis & Distributed Caching
-[ ] Stage 11 — Distributed Messaging
-[ ] Stage 12 — Distributed Storage
+[ ] Stage 7  — GitOps & Progressive Delivery
+[ ] Stage 8  — Observability
+[ ] Stage 9  — SRE Practices
+    ── core path complete above this line ──
+[ ] Stage 10 — PostgreSQL High Availability   (stretch)
+[ ] Stage 11 — Redis & Distributed Caching    (stretch)
+[ ] Stage 12 — Distributed Messaging          (stretch)
+[ ] Stage 13 — Distributed Storage            (stretch, optional)
 [ ] Final Production Simulation
 ```
 
@@ -2016,9 +2153,13 @@ Debug
     ↓
 Automate
     ↓
+Provision as code
+    ↓
 Containerize
     ↓
 Orchestrate
+    ↓
+Deliver continuously (GitOps)
     ↓
 Observe
     ↓
@@ -2046,11 +2187,12 @@ It simulates production engineering practices but should not be considered a com
 * threat modeling
 * security review
 * compliance controls
-* capacity planning
-* performance testing
-* chaos testing
+* full capacity planning at production scale
+* performance/load testing at scale
+* continuous, large-scale chaos engineering programs (this lab covers introductory chaos tooling in Stage 9, not a mature program)
 * organizational processes
 * production-specific operational controls
+* cloud cost management at scale
 
 ---
 
